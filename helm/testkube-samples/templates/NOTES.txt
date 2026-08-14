@@ -1,0 +1,11 @@
+{{- if .Values.httpRoute.enabled }}
+Application URL: https://{{ .Values.httpRoute.hostname }}
+{{- else }}
+HTTPRoute creation is disabled.
+{{- end }}
+
+API image: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
+Web image: {{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}
+Database Secret: {{ .Values.api.database.secretName }} (key: {{ .Values.api.database.secretKey }})
+
+The release expects Istio injection and public Gateway access to be configured on namespace {{ .Release.Namespace }}.

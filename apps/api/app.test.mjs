@@ -4,7 +4,7 @@ import { app } from "./index.mjs";
 
 test("Responds with a welcome message", async () => {
   await request(app)
-    .get("/hello")
+    .get("/api/hello")
     .set("Accept", "application/json")
     .expect("Content-Type", /json/)
     .expect(200);

@@ -4,7 +4,11 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     ports:
-      - "4173:4173"
+      - "4173:8080"
+    environment:
+      API_UPSTREAM: "http://api:8080"
+    depends_on:
+      - api
 
   api:
     build:
@@ -13,14 +17,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
+      DATABASE_URL: "postgres://api-user:api-password@db:5432/api-db"
     depends_on:
       db:
         condition: service_healthy
 
   db:
-    image: postgres
+    image: postgres:16.14-alpine3.23
     restart: always
     environment:
       POSTGRES_DB: api-db

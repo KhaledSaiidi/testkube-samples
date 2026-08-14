@@ -18,7 +18,7 @@ docker-compose up
 Or run it locally:
 
 ```
-npm run start
+DATABASE_URL=postgres://api-user:api-password@localhost:15432/api-db npm run start
 ```
 
 When running locally you should start your own PostgreSQL database.
