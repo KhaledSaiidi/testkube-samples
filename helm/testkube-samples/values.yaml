@@ -7,7 +7,7 @@ api:
   replicaCount: 1
   image:
     repository: ghcr.io/khaledsaiidi/testkube-samples-api
-    tag: "0.1.2"
+    tag: "0.1.3"
     pullPolicy: IfNotPresent
   database:
     secretName: api-db-credentials
@@ -29,7 +29,7 @@ web:
   replicaCount: 1
   image:
     repository: ghcr.io/khaledsaiidi/testkube-samples-web
-    tag: "0.1.2"
+    tag: "0.1.3"
     pullPolicy: IfNotPresent
   serviceAccount:
     annotations: {}
