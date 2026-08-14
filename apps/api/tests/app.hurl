@@ -1,2 +1,2 @@
-GET {{origin}}/hello
+GET {{origin}}/api/hello
 HTTP 200

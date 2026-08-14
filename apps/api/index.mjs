@@ -12,16 +12,16 @@ const DB_PORT = process.env["DB_PORT"] ?? 15432;
 export const app = express();
 app.use(cors());
 
-app.get("/hello", (request, response) => {
-  console.log("GET /hello");
+app.get("/api/hello", (request, response) => {
+  console.log("GET /api/hello");
   const name = request.query?.name;
   console.log("Test", name);
   return response.json({ message: `hello, ${name ?? "world"}` });
 });
 
-app.get("/hello-pg", async (_, response) => {
+app.get("/api/hello-pg", async (_, response) => {
   try {
-    console.log("GET /hello-pg");
+    console.log("GET /api/hello-pg");
 
     const client = new pg.Client({
       connectionString: `postgres://api-user:api-password@${DB_HOST}:${DB_PORT}/api-db`,
@@ -37,7 +37,7 @@ app.get("/hello-pg", async (_, response) => {
 
     response.json({ message });
   } catch (err) {
-    console.log("GET /hello-pg failed", err.message);
+    console.log("GET /api/hello-pg failed", err.message);
     response.json({ message: `request failed` });
   }
 });
