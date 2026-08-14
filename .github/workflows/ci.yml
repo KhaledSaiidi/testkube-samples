@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   test:
-    name: Test and validate
+    name: 🧪 Test and validate
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -78,10 +78,10 @@ jobs:
       - name: Install application dependencies
         run: npm ci
 
-      - name: Run unit tests
+      - name: 🧪 Run unit tests
         run: npm run test
 
-      - name: Run end-to-end tests
+      - name: 🌐 Run end-to-end tests
         shell: bash
         run: |
           set -euo pipefail
@@ -105,13 +105,13 @@ jobs:
 
             for attempt in {1..30}; do
               if curl --fail --silent "$url" >/dev/null 2>&1; then
-                echo "$name is ready"
+                echo "✅ $name is ready"
                 return 0
               fi
               sleep 2
             done
 
-            echo "::error::$name did not become ready at $url" >&2
+            echo "::error::❌ $name did not become ready at $url" >&2
             tail -n 100 "$application_log" >&2 || true
             return 1
           }
@@ -129,7 +129,7 @@ jobs:
           path: ${{ runner.temp }}/application.log
           if-no-files-found: ignore
 
-      - name: Detect image changes
+      - name: 🔎 Detect image changes
         id: changes
         shell: bash
         env:
@@ -189,13 +189,13 @@ jobs:
           echo "publish_matrix=$publish_matrix" >>"$GITHUB_OUTPUT"
 
           {
-            echo "### Image changes"
+            echo "### 🔎 Image changes"
             echo "- API: $api_changed"
             echo "- Web: $web_changed"
           } >>"$GITHUB_STEP_SUMMARY"
 
   publish:
-    name: Publish ${{ matrix.component }}
+    name: 📦 Publish changed images
     needs:
       - test
     if: needs.test.outputs.api_changed == 'true' || needs.test.outputs.web_changed == 'true'
@@ -277,7 +277,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: 🚀 Build and push
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -298,7 +298,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "### Published ${{ matrix.component }}"
+            echo "### 📦 Published ${{ matrix.component }}"
             echo "- Image: ${{ steps.version.outputs.image }}"
             echo "- Version: ${{ steps.version.outputs.version }}"
             echo "- Digest: ${{ steps.build.outputs.digest }}"
