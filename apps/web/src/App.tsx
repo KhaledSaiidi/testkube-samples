@@ -55,13 +55,19 @@ function HelloServer() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(false);
     const url = new URL("/api/hello", window.location.origin);
     if (name) {
       url.searchParams.append("name", name);
     }
 
     fetch(url)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`request failed with status ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
         setResponse(data.message);
         setLoading(false);
@@ -112,8 +118,14 @@ function HelloDatabase() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(false);
     fetch("/api/hello-pg")
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`request failed with status ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
         setResponse(data.message);
         setLoading(false);

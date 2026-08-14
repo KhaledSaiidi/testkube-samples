@@ -40,7 +40,7 @@ app.get("/api/hello-pg", async (_, response) => {
     response.json({ message });
   } catch (err) {
     console.log("GET /api/hello-pg failed", err.message);
-    response.json({ message: `request failed` });
+    return response.status(503).json({ message: "database unavailable" });
   }
 });
 
