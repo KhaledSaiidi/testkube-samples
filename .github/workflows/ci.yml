@@ -161,13 +161,13 @@ jobs:
               printf '%s\n' "$changed_files"
 
               if grep -Eq \
-                '^(apps/api/|package\.json$|package-lock\.json$|\.dockerignore$|\.github/workflows/ci\.yml$)' \
+                '^(apps/api/|package\.json$|package-lock\.json$|\.dockerignore$)' \
                 <<<"$changed_files"; then
                 api_changed=true
               fi
 
               if grep -Eq \
-                '^(apps/web/|package\.json$|package-lock\.json$|\.dockerignore$|\.github/workflows/ci\.yml$)' \
+                '^(apps/web/|package\.json$|package-lock\.json$|\.dockerignore$)' \
                 <<<"$changed_files"; then
                 web_changed=true
               fi
