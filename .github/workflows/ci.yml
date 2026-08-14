@@ -99,13 +99,25 @@ jobs:
           }
           trap cleanup EXIT
 
-          curl --fail --silent --show-error \
-            --retry 30 --retry-delay 2 --retry-all-errors \
-            http://localhost:8080/readyz >/dev/null
+          wait_for_url() {
+            local name="$1"
+            local url="$2"
 
-          curl --fail --silent --show-error \
-            --retry 30 --retry-delay 2 --retry-all-errors \
-            http://localhost:4173 >/dev/null
+            for attempt in {1..30}; do
+              if curl --fail --silent "$url" >/dev/null 2>&1; then
+                echo "$name is ready"
+                return 0
+              fi
+              sleep 2
+            done
+
+            echo "::error::$name did not become ready at $url" >&2
+            tail -n 100 "$application_log" >&2 || true
+            return 1
+          }
+
+          wait_for_url "API" "http://localhost:8080/readyz"
+          wait_for_url "Web" "http://localhost:4173"
 
           npm run test:e2e
 
@@ -186,10 +198,7 @@ jobs:
     name: Publish ${{ matrix.component }}
     needs:
       - test
-    if: >-
-      ${{ github.event_name != 'pull_request' &&
-      (needs.test.outputs.api_changed == 'true' ||
-      needs.test.outputs.web_changed == 'true') }}
+    if: needs.test.outputs.api_changed == 'true' || needs.test.outputs.web_changed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
