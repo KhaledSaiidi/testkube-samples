@@ -11,7 +11,8 @@
     },
     "dev": {
       "persistent": true,
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_URL"]
     }
   }
 }

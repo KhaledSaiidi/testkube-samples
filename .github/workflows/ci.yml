@@ -1,0 +1,296 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test and validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      api_changed: ${{ steps.changes.outputs.api_changed }}
+      web_changed: ${{ steps.changes.outputs.web_changed }}
+      publish_matrix: ${{ steps.changes.outputs.publish_matrix }}
+
+    services:
+      postgres:
+        image: postgres:16.14-alpine3.23
+        env:
+          POSTGRES_DB: api-db
+          POSTGRES_USER: api-user
+          POSTGRES_PASSWORD: api-password
+        ports:
+          - 15432:5432
+        options: >-
+          --health-cmd "pg_isready -U api-user -d api-db"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Install runner dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HURL_VERSION=8.0.1
+          curl --fail --location --remote-name \
+            "https://github.com/Orange-OpenSource/hurl/releases/download/${HURL_VERSION}/hurl_${HURL_VERSION}_amd64.deb"
+
+          sudo apt-get update
+          sudo apt-get install -y \
+            "./hurl_${HURL_VERSION}_amd64.deb" \
+            libgtk-3-0t64 \
+            libgbm-dev \
+            libnotify-dev \
+            libnss3 \
+            libxss1 \
+            libasound2t64 \
+            libxtst6 \
+            xauth \
+            xvfb
+
+          hurl --version
+          docker version
+          docker buildx version
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Run end-to-end tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          application_log="$RUNNER_TEMP/application.log"
+
+          setsid env \
+            DATABASE_URL=postgres://api-user:api-password@localhost:15432/api-db \
+            npm run start >"$application_log" 2>&1 &
+          application_pid=$!
+
+          cleanup() {
+            kill -- -"$application_pid" 2>/dev/null || true
+            wait "$application_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          curl --fail --silent --show-error \
+            --retry 30 --retry-delay 2 --retry-all-errors \
+            http://localhost:8080/readyz >/dev/null
+
+          curl --fail --silent --show-error \
+            --retry 30 --retry-delay 2 --retry-all-errors \
+            http://localhost:4173 >/dev/null
+
+          npm run test:e2e
+
+      - name: Upload application logs on failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-logs
+          path: ${{ runner.temp }}/application.log
+          if-no-files-found: ignore
+
+      - name: Detect image changes
+        id: changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          api_changed=false
+          web_changed=false
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            api_changed=true
+            web_changed=true
+          else
+            if [[ "$EVENT_NAME" == "pull_request" ]]; then
+              base_sha="$PR_BASE_SHA"
+            else
+              base_sha="$PUSH_BASE_SHA"
+            fi
+
+            if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]] || \
+               ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+              api_changed=true
+              web_changed=true
+            else
+              changed_files=$(git diff --name-only "$base_sha" "$GITHUB_SHA")
+              printf '%s\n' "$changed_files"
+
+              if grep -Eq \
+                '^(apps/api/|package\.json$|package-lock\.json$|\.dockerignore$|\.github/workflows/ci\.yml$)' \
+                <<<"$changed_files"; then
+                api_changed=true
+              fi
+
+              if grep -Eq \
+                '^(apps/web/|package\.json$|package-lock\.json$|\.dockerignore$|\.github/workflows/ci\.yml$)' \
+                <<<"$changed_files"; then
+                web_changed=true
+              fi
+            fi
+          fi
+
+          if [[ "$api_changed" == "true" && "$web_changed" == "true" ]]; then
+            publish_matrix='{"include":[{"component":"api"},{"component":"web"}]}'
+          elif [[ "$api_changed" == "true" ]]; then
+            publish_matrix='{"include":[{"component":"api"}]}'
+          elif [[ "$web_changed" == "true" ]]; then
+            publish_matrix='{"include":[{"component":"web"}]}'
+          else
+            publish_matrix='{"include":[]}'
+          fi
+
+          echo "api_changed=$api_changed" >>"$GITHUB_OUTPUT"
+          echo "web_changed=$web_changed" >>"$GITHUB_OUTPUT"
+          echo "publish_matrix=$publish_matrix" >>"$GITHUB_OUTPUT"
+
+          {
+            echo "### Image changes"
+            echo "- API: $api_changed"
+            echo "- Web: $web_changed"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Publish ${{ matrix.component }}
+    needs:
+      - test
+    if: >-
+      ${{ github.event_name != 'pull_request' &&
+      (needs.test.outputs.api_changed == 'true' ||
+      needs.test.outputs.web_changed == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.test.outputs.publish_matrix) }}
+    concurrency:
+      group: publish-${{ matrix.component }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Determine image version
+        id: version
+        shell: bash
+        env:
+          COMPONENT: ${{ matrix.component }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          repository="${GITHUB_REPOSITORY#*/}"
+          repository="${repository,,}"
+          package="${repository}-${COMPONENT}"
+          image="ghcr.io/${owner}/${package}"
+
+          owner_type=$(gh api "/users/${GITHUB_REPOSITORY_OWNER}" --jq '.type')
+          if [[ "$owner_type" == "Organization" ]]; then
+            endpoint="/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions"
+          else
+            endpoint="/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions"
+          fi
+
+          error_file=$(mktemp)
+          if versions=$(gh api "${endpoint}?per_page=100" 2>"$error_file"); then
+            :
+          elif grep -q "HTTP 404" "$error_file"; then
+            versions='[]'
+          else
+            cat "$error_file" >&2
+            exit 1
+          fi
+
+          latest=$(
+            jq -r '.[].metadata.container.tags[]?' <<<"$versions" |
+              grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' |
+              sort -V |
+              tail -n 1 || true
+          )
+
+          if [[ -z "$latest" ]]; then
+            next_version=0.1.0
+          else
+            IFS=. read -r major minor patch <<<"$latest"
+            next_version="${major}.${minor}.$((patch + 1))"
+          fi
+
+          short_sha="${GITHUB_SHA::12}"
+
+          echo "image=$image" >>"$GITHUB_OUTPUT"
+          echo "version=$next_version" >>"$GITHUB_OUTPUT"
+          echo "short_sha=$short_sha" >>"$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.component }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
+            ${{ steps.version.outputs.image }}:sha-${{ steps.version.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+      - name: Write publication summary
+        shell: bash
+        run: |
+          {
+            echo "### Published ${{ matrix.component }}"
+            echo "- Image: ${{ steps.version.outputs.image }}"
+            echo "- Version: ${{ steps.version.outputs.version }}"
+            echo "- Digest: ${{ steps.build.outputs.digest }}"
+          } >>"$GITHUB_STEP_SUMMARY"
