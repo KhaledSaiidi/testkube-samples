@@ -135,29 +135,49 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           PUSH_BASE_SHA: ${{ github.event.before }}
+          PR_ACTION: ${{ github.event.action }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BEFORE_SHA: ${{ github.event.before }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
 
           api_changed=false
           web_changed=false
 
+          base_sha=""
+          target_sha=""
+
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             api_changed=true
             web_changed=true
-          else
-            if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            echo "Manual run requested: publishing both images"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            if [[ "$PR_ACTION" == "opened" ]]; then
               base_sha="$PR_BASE_SHA"
+              target_sha="$PR_HEAD_SHA"
+            elif [[ "$PR_ACTION" == "synchronize" ]]; then
+              base_sha="$PR_BEFORE_SHA"
+              target_sha="$PR_HEAD_SHA"
             else
-              base_sha="$PUSH_BASE_SHA"
+              echo "Pull request action '$PR_ACTION' contains no new commits"
             fi
+          else
+            base_sha="$PUSH_BASE_SHA"
+            target_sha="$GITHUB_SHA"
+          fi
 
-            if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]] || \
-               ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+          if [[ -n "$base_sha" || -n "$target_sha" ]]; then
+            echo "Comparing commits: $base_sha..$target_sha"
+
+            if [[ -z "$base_sha" || -z "$target_sha" || "$base_sha" =~ ^0+$ ]] || \
+               ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null || \
+               ! git cat-file -e "${target_sha}^{commit}" 2>/dev/null; then
+              echo "Comparison range is unavailable; publishing both images"
               api_changed=true
               web_changed=true
             else
-              changed_files=$(git diff --name-only "$base_sha" "$GITHUB_SHA")
+              changed_files=$(git diff --name-only "$base_sha" "$target_sha" --)
               printf '%s\n' "$changed_files"
 
               if grep -Eq \

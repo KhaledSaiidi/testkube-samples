@@ -1,0 +1,13 @@
+{{- if .Values.web.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "testkube-samples.componentName" (dict "root" . "component" "web") }}
+  labels:
+    {{- include "testkube-samples.labels" (dict "root" . "component" "web") | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.web.pdb.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "testkube-samples.selectorLabels" (dict "root" . "component" "web") | nindent 6 }}
+{{- end }}

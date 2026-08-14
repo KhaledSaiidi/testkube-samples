@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "testkube-samples.componentName" (dict "root" . "component" "web") }}
+  labels:
+    {{- include "testkube-samples.labels" (dict "root" . "component" "web") | nindent 4 }}
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "testkube-samples.selectorLabels" (dict "root" . "component" "web") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "testkube-samples.labels" (dict "root" . "component" "web") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "testkube-samples.componentName" (dict "root" . "component" "web") }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: {{ printf "%s:%s" .Values.web.image.repository .Values.web.image.tag | quote }}
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: API_UPSTREAM
+              value: {{ printf "http://%s:8080" (include "testkube-samples.componentName" (dict "root" . "component" "api")) | quote }}
+          securityContext:
+            runAsUser: 101
+            runAsGroup: 101
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: nginx-conf
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

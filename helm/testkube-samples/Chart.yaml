@@ -1,0 +1,5 @@
+apiVersion: v2
+name: testkube-samples
+description: Opinionated deployment chart for the Testkube sample API and web applications
+type: application
+version: 0.1.0

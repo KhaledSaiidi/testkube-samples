@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["api", "web", "httpRoute"],
+  "properties": {
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "api": {
+      "$ref": "#/definitions/api"
+    },
+    "web": {
+      "$ref": "#/definitions/web"
+    },
+    "httpRoute": {
+      "$ref": "#/definitions/httpRoute"
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "limits"],
+      "properties": {
+        "requests": {
+          "$ref": "#/definitions/resourceList"
+        },
+        "limits": {
+          "$ref": "#/definitions/resourceList"
+        }
+      }
+    },
+    "resourceList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu", "memory"],
+      "properties": {
+        "cpu": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["annotations"],
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "maxUnavailable"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxUnavailable": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replicaCount", "image", "database", "serviceAccount", "resources", "pdb"],
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["secretName", "secretKey"],
+          "properties": {
+            "secretName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "secretKey": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "serviceAccount": {
+          "$ref": "#/definitions/serviceAccount"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "pdb": {
+          "$ref": "#/definitions/pdb"
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replicaCount", "image", "serviceAccount", "resources", "pdb"],
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "serviceAccount": {
+          "$ref": "#/definitions/serviceAccount"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "pdb": {
+          "$ref": "#/definitions/pdb"
+        }
+      }
+    },
+    "httpRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "hostname", "gateway"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostname": {
+          "type": "string",
+          "minLength": 1
+        },
+        "gateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "namespace", "httpSectionName", "httpsSectionName"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "namespace": {
+              "type": "string",
+              "minLength": 1
+            },
+            "httpSectionName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "httpsSectionName": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
