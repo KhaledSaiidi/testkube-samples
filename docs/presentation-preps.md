@@ -8,7 +8,7 @@ You are tasked with creating the required deployment tooling and crafting a grea
 Please prepare a presentation or document outlining your design for the developer platform including a critical analysis of the most critical requirements. 
 We encourage you to develop an MVP of your proposed platform.
 
-# Issues fixed: 
+# Issues To Check: 
 | #  | Finding                                               | Clarification                                                                                                                                                                                                                             | Priority     |
 | -- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | 1  | Frontend API address is hardcoded                     | `const API_ORIGIN = "http://localhost:8080"` is compiled into the frontend. In Kubernetes, the browser cannot use cluster-local service discovery. Prefer same-origin `/api` routing through Gateway API.                                 | **Critical** |

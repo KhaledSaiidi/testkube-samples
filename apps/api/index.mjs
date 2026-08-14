@@ -6,9 +6,6 @@ import cors from "cors";
 
 const PORT = 8080;
 
-const DB_HOST = process.env["DB_HOST"] ?? "localhost";
-const DB_PORT = process.env["DB_PORT"] ?? 15432;
-
 export const app = express();
 app.use(cors());
 
@@ -23,8 +20,13 @@ app.get("/api/hello-pg", async (_, response) => {
   try {
     console.log("GET /api/hello-pg");
 
+    const databaseUrl = process.env["DATABASE_URL"];
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is required");
+    }
+
     const client = new pg.Client({
-      connectionString: `postgres://api-user:api-password@${DB_HOST}:${DB_PORT}/api-db`,
+      connectionString: databaseUrl,
     });
     await client.connect();
 
