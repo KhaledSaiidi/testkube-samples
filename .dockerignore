@@ -1,7 +1,18 @@
-cypress
-dist
-node_modules
-**/node_modules/**
+.git
+.github
+.idea
+.vscode
 
-.eslintrc.cjs
-cypress.config.cjs
+**/.turbo
+**/dist
+**/node_modules
+**/*.log
+
+**/cypress
+**/cypress.config.*
+**/k8s
+**/tests
+**/*.test.*
+
+docs
+README.md

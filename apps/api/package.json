@@ -15,16 +15,14 @@
   "author": "wito.delnat@gmail.com",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/resource": "1.2.1",
-    "@google-cloud/storage": "5.7.4",
     "cors": "2.8.5",
     "express": "4.17.1",
     "http-graceful-shutdown": "3.1.13",
-    "pg": "8.11.3",
-    "supertest": "6.3.4"
+    "pg": "8.11.3"
   },
   "devDependencies": {
     "nodemon": "3.1.0",
+    "supertest": "6.3.4",
     "vitest": "1.4.0"
   }
 }

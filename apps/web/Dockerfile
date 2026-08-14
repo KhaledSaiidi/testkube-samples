@@ -1,18 +1,24 @@
-FROM node:lts as build
+FROM node:24.15.0-alpine3.23 AS build
 
 WORKDIR /app
 
-COPY package.json ./
-COPY package-lock.json ./
+COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/package.json
 
-RUN npm ci
+RUN CYPRESS_INSTALL_BINARY=0 npm ci \
+    --workspace=testkube-sample-web \
+    --include-workspace-root=false
 
-COPY . .
+COPY apps/web ./apps/web
 
+RUN npm run build --workspace=testkube-sample-web
 
-WORKDIR /app/apps/web
+FROM nginxinc/nginx-unprivileged:1.29.4-alpine3.23 AS runtime
 
-RUN npm run build
+ENV API_UPSTREAM=http://127.0.0.1:8080
 
-CMD ["npx", "vite", "preview"]
+COPY apps/web/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build --chown=101:101 /app/apps/web/dist /usr/share/nginx/html
+
+USER 101:101
+EXPOSE 8080
