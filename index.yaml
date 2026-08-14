@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  testkube-samples:
+  - apiVersion: v2
+    created: "2026-08-14T21:59:03.331627146Z"
+    description: Opinionated deployment chart for the Testkube sample API and web
+      applications
+    digest: f40345dfb575cbfd0926b1b7e9543f06c6510ac5295544e872774a3dd01155cc
+    name: testkube-samples
+    type: application
+    urls:
+    - https://github.com/KhaledSaiidi/testkube-samples/releases/download/testkube-samples-0.1.0/testkube-samples-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-08-14T21:59:03.331633055Z"
